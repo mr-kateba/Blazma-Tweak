@@ -19,6 +19,8 @@ Owner's request (verbatim): "اداة تسوي تويك لل ويندز و تع�
 - v0.1.0 released (60 tweaks, presets, RAM live + clean + auto-clean, power plans + Ultimate, cleanup scan/clean, DNS/ping/reset, restore point, undo-all, ar/en).
 - Site: `/tweak` launcher, tool entry with "نسخ الأمر", logo `logos/tweak.svg`, stats.
 
+- v0.2.0 (owner: "سويها كلها" after a GitHub survey): 100 tweaks (Sophia-inspired additions + own advanced gaming/network ones), smart scan (`Get-BTProfile`, `when`/`rec` fields, "Apply recommended"), Apps page (`config/apps.json`, Win11Debloat-inspired list, Store restore links), Startup page (StartupApproved switches + Store-app startup tasks), export/import, headless CLI (`-Preset/-Apply/-Undo/-Config/-List`), THIRD-PARTY-NOTICES.md.
+
 ## Next (proposed, not agreed)
 - Owner tests on his PC; fix what he reports.
 - Confirm what "الخام" meant.

@@ -542,3 +542,200 @@ function Get-BTSystemInfo {
         Uptime   = ((Get-Date) - $os.LastBootUpTime)
     }
 }
+
+
+# ------------------------------------------------------------------ smart scan
+# What kind of PC this is, so only tweaks that make sense for it are recommended.
+function Get-BTProfile {
+    $ramGB = [math]::Round(((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory) / 1GB)
+    $ssd = $false
+    try {
+        $num = (Get-Partition -DriveLetter ($env:SystemDrive.TrimEnd(':')) -ErrorAction Stop).DiskNumber
+        $pd = Get-PhysicalDisk -ErrorAction Stop | Where-Object { [string]$_.DeviceId -eq [string]$num } | Select-Object -First 1
+        $ssd = ($pd.MediaType -eq 'SSD') -or ($pd.BusType -eq 'NVMe')
+    } catch { }
+    $chassis = @((Get-CimInstance Win32_SystemEnclosure -ErrorAction SilentlyContinue).ChassisTypes)
+    $laptop = [bool](Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue) -or [bool]($chassis | Where-Object { $_ -in 8, 9, 10, 11, 12, 14, 18, 21, 30, 31, 32 })
+    $printers = @(Get-CimInstance Win32_Printer -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch '(?i)pdf|xps|onenote|fax|send to' }).Count
+    [pscustomobject]@{ RamGB = $ramGB; Ssd = $ssd; Laptop = $laptop; Printers = $printers }
+}
+
+function Test-BTWhen($Tweak, $Pc) {
+    $w = $Tweak.when
+    if (-not $w -or -not $Pc) { return $true }
+    if ($null -ne $w.ramMin -and $Pc.RamGB -lt [double]$w.ramMin) { return $false }
+    if ($null -ne $w.ssd -and [bool]$Pc.Ssd -ne [bool]$w.ssd) { return $false }
+    if ($null -ne $w.laptop -and [bool]$Pc.Laptop -ne [bool]$w.laptop) { return $false }
+    if ($null -ne $w.printers -and $Pc.Printers -ne [int]$w.printers) { return $false }
+    return $true
+}
+
+# Recommended = the gaming preset plus tweaks marked "rec", minus expert ones and ones that don't fit this PC.
+function Test-BTRecommended($Tweak, $Pc) {
+    if ($Tweak.risk -eq 'expert') { return $false }
+    if (-not (@($Tweak.presets) -contains 'gaming' -or $Tweak.rec)) { return $false }
+    Test-BTWhen $Tweak $Pc
+}
+
+# ------------------------------------------------------------------ built-in apps
+function Get-BTApps($Catalog) {
+    $all = @()
+    try { $all = @(Get-AppxPackage -AllUsers -ErrorAction Stop) } catch { $all = @(Get-AppxPackage -ErrorAction SilentlyContinue) }
+    $prov = @()
+    try { $prov = @(Get-AppxProvisionedPackage -Online -ErrorAction Stop) } catch { }
+    foreach ($a in $Catalog) {
+        $hit = @($all | Where-Object { $_.Name -like $a.match -and -not $_.IsFramework })
+        $p = @($prov | Where-Object { $_.DisplayName -like $a.match })
+        [pscustomobject]@{
+            Match = $a.match; Installed = ($hit.Count -gt 0); Provisioned = ($p.Count -gt 0)
+            Family = $(if ($hit.Count) { $hit[0].PackageFamilyName } else { $null })
+            Size = 0
+        }
+    }
+}
+
+function Remove-BTApps([string[]]$Names) {
+    $log = Join-Path $BTDir 'apps.json'
+    $removed = @()
+    if (Test-Path $log) { try { $removed = @(Get-Content $log -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { } }
+    $done = @()
+    foreach ($m in $Names) {
+        $pk = @()
+        try { $pk = @(Get-AppxPackage -AllUsers -Name $m -ErrorAction Stop) } catch { $pk = @(Get-AppxPackage -Name $m -ErrorAction SilentlyContinue) }
+        foreach ($p in $pk) {
+            if ($BTDryRun) { Write-BTLog "DRY remove app $($p.PackageFullName)"; continue }
+            try { Remove-AppxPackage -Package $p.PackageFullName -AllUsers -ErrorAction Stop }
+            catch { Remove-AppxPackage -Package $p.PackageFullName -ErrorAction SilentlyContinue }
+            Write-BTLog "removed app $($p.PackageFullName)"
+        }
+        if (-not $BTDryRun) {
+            Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like $m } |
+                ForEach-Object { Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue | Out-Null }
+        }
+        if ($pk.Count) {
+            $done += $m
+            $removed = @($removed | Where-Object { $_.match -ne $m }) + [pscustomobject]@{ match = $m; family = $pk[0].PackageFamilyName; time = (Get-Date).ToString('s') }
+        }
+    }
+    if (-not $BTDryRun) {
+        if (-not (Test-Path $BTDir)) { New-Item -ItemType Directory -Path $BTDir -Force | Out-Null }
+        [IO.File]::WriteAllText($log, (ConvertTo-Json @($removed) -Depth 4), (New-Object Text.UTF8Encoding($false)))
+    }
+    $done
+}
+
+function Get-BTRemovedApps {
+    $log = Join-Path $BTDir 'apps.json'
+    if (-not (Test-Path $log)) { return @() }
+    try { @(Get-Content $log -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { @() }
+}
+
+# ------------------------------------------------------------------ startup apps
+# Same switches Task Manager uses (Explorer\StartupApproved): nothing is deleted, so turning an item back on always works.
+$script:BTApprovedRoot = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved'
+
+function Get-BTStartupItems {
+    $items = New-Object System.Collections.ArrayList
+    $sources = @(
+        @{ Hive = 'HKCU'; Run = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; Approved = 'Run'; Scope = 'user' }
+        @{ Hive = 'HKLM'; Run = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; Approved = 'Run'; Scope = 'machine' }
+        @{ Hive = 'HKLM'; Run = 'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run'; Approved = 'Run32'; Scope = 'machine' }
+    )
+    foreach ($s in $sources) {
+        $p = Split-BTRegPath "$($s.Hive)\$($s.Run)"
+        $base = Open-BTRegBase $p.Hive
+        try {
+            $k = $base.OpenSubKey($p.Sub, $false)
+            if (-not $k) { continue }
+            foreach ($n in $k.GetValueNames()) {
+                if (-not $n) { continue }
+                $cmd = [string]$k.GetValue($n)
+                [void]$items.Add([pscustomobject]@{ Name = $n; Command = $cmd; Hive = $s.Hive; Approved = $s.Approved; Kind = 'reg'; Scope = $s.Scope
+                    Enabled = (Test-BTStartupEnabled $s.Hive $s.Approved $n); File = (Get-BTCommandFile $cmd) })
+            }
+            $k.Close()
+        } finally { $base.Close() }
+    }
+    $folders = @(
+        @{ Path = [Environment]::GetFolderPath('Startup'); Hive = 'HKCU'; Scope = 'user' }
+        @{ Path = [Environment]::GetFolderPath('CommonStartup'); Hive = 'HKLM'; Scope = 'machine' }
+    )
+    foreach ($f in $folders) {
+        if (-not $f.Path -or -not (Test-Path $f.Path)) { continue }
+        foreach ($file in Get-ChildItem -Path $f.Path -File -ErrorAction SilentlyContinue | Where-Object Name -ne 'desktop.ini') {
+            $target = $file.FullName
+            if ($file.Extension -eq '.lnk') { try { $target = (New-Object -ComObject WScript.Shell).CreateShortcut($file.FullName).TargetPath } catch { } }
+            [void]$items.Add([pscustomobject]@{ Name = $file.Name; Command = $target; Hive = $f.Hive; Approved = 'StartupFolder'; Kind = 'folder'; Scope = $f.Scope
+                Enabled = (Test-BTStartupEnabled $f.Hive 'StartupFolder' $file.Name); File = $target })
+        }
+    }
+    # Store apps (Teams, Spotify...) keep their own switch
+    $appRoot = 'Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData'
+    $base = Open-BTRegBase ([Microsoft.Win32.RegistryHive]::CurrentUser)
+    try {
+        $r = $base.OpenSubKey($appRoot, $false)
+        if ($r) {
+            foreach ($pkg in $r.GetSubKeyNames()) {
+                $pk = $r.OpenSubKey($pkg, $false)
+                foreach ($task in $pk.GetSubKeyNames()) {
+                    $tk = $pk.OpenSubKey($task, $false)
+                    $state = $tk.GetValue('State', $null)
+                    if ($null -ne $state) {
+                        $nice = ($pkg -split '_')[0] -replace '^[^.]+\.', ''
+                        [void]$items.Add([pscustomobject]@{ Name = $nice; Command = $pkg; Hive = 'HKCU'; Approved = "$appRoot\$pkg\$task"; Kind = 'store'; Scope = 'user'
+                            Enabled = ([int]$state -eq 2 -or [int]$state -eq 4); File = $null })
+                    }
+                    $tk.Close()
+                }
+                $pk.Close()
+            }
+            $r.Close()
+        }
+    } finally { $base.Close() }
+    foreach ($i in $items) {
+        $pub = ''
+        if ($i.File -and (Test-Path -LiteralPath $i.File -ErrorAction SilentlyContinue)) { try { $pub = (Get-Item -LiteralPath $i.File).VersionInfo.CompanyName } catch { } }
+        $i | Add-Member -NotePropertyName Publisher -NotePropertyValue ([string]$pub) -Force
+    }
+    @($items | Sort-Object @{ Expression = { -not $_.Enabled } }, Name)
+}
+
+function Get-BTCommandFile([string]$Cmd) {
+    if (-not $Cmd) { return $null }
+    $c = [Environment]::ExpandEnvironmentVariables($Cmd.Trim())
+    if ($c.StartsWith('"')) { $e = $c.IndexOf('"', 1); if ($e -gt 1) { return $c.Substring(1, $e - 1) } }
+    $m = [regex]::Match($c, '^(.+?\.(exe|cmd|bat|com|lnk))(\s|$)', 'IgnoreCase')
+    if ($m.Success) { return $m.Groups[1].Value }
+    ($c -split '\s')[0]
+}
+
+function Test-BTStartupEnabled([string]$Hive, [string]$Approved, [string]$Name) {
+    $v = Get-BTRegValue "$Hive\$script:BTApprovedRoot\$Approved" $Name
+    if (-not $v.Exists -or $v.Kind -ne 'Binary') { return $true }
+    $first = [Convert]::ToInt32((($v.Value -split ' ')[0]), 16)
+    return (($first % 2) -eq 0)
+}
+
+function Set-BTStartupItem($Item, [bool]$Enabled) {
+    if ($Item.Kind -eq 'store') {
+        if ($BTDryRun) { Write-BTLog "DRY startup $($Item.Name) -> $Enabled"; return }
+        Set-BTRegValue "HKCU\$($Item.Approved)" 'State' 'DWord' $(if ($Enabled) { 2 } else { 1 })
+    } else {
+        $hex = if ($Enabled) { '02 00 00 00 00 00 00 00 00 00 00 00' }
+               else { $ft = [BitConverter]::GetBytes((Get-Date).ToFileTime()); '03 00 00 00 ' + (($ft | ForEach-Object { '{0:x2}' -f $_ }) -join ' ') }
+        Set-BTRegValue "$($Item.Hive)\$script:BTApprovedRoot\$($Item.Approved)" $Item.Name 'Binary' $hex
+    }
+    Write-BTLog "startup $($Item.Name) enabled=$Enabled"
+}
+
+# ------------------------------------------------------------------ export / import
+function Export-BTConfig([string]$Path, [string[]]$Ids) {
+    $o = [ordered]@{ tool = 'Blazma Tweak'; version = 1; created = (Get-Date).ToString('s'); tweaks = @($Ids) }
+    [IO.File]::WriteAllText($Path, ($o | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding($false)))
+}
+
+function Import-BTConfig([string]$Path) {
+    $o = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($o.tool -ne 'Blazma Tweak' -or -not $o.tweaks) { throw 'Not a Blazma Tweak settings file.' }
+    @($o.tweaks)
+}

@@ -233,6 +233,8 @@
         <StackPanel x:Name="NavPanel">
           <RadioButton x:Name="NavHome" Style="{StaticResource Nav}" GroupName="nav" IsChecked="True" Content="" Tag="M3,11 L12,4 L21,11 M5,10 L5,20 L19,20 L19,10 M10,20 L10,14 L14,14 L14,20"/>
           <RadioButton x:Name="NavTweaks" Style="{StaticResource Nav}" GroupName="nav" Tag="M4,7 L14,7 M18,7 L20,7 M4,17 L6,17 M10,17 L20,17 M14,4 L18,4 L18,10 L14,10 Z M6,14 L10,14 L10,20 L6,20 Z"/>
+          <RadioButton x:Name="NavApps" Style="{StaticResource Nav}" GroupName="nav" Tag="M4,4 L10,4 L10,10 L4,10 Z M14,4 L20,4 L20,10 L14,10 Z M4,14 L10,14 L10,20 L4,20 Z M14,17 L20,17 M17,14 L17,20"/>
+          <RadioButton x:Name="NavStartup" Style="{StaticResource Nav}" GroupName="nav" Tag="M12,3 L12,12 M6.3,6.3 A8,8 0 1 0 17.7,6.3"/>
           <RadioButton x:Name="NavMemory" Style="{StaticResource Nav}" GroupName="nav" Tag="M3,7 L21,7 L21,16 L3,16 Z M7,10 L7,13 M11,10 L11,13 M15,10 L15,13 M6,16 L6,19 M10,16 L10,19 M14,16 L14,19 M18,16 L18,19"/>
           <RadioButton x:Name="NavPower" Style="{StaticResource Nav}" GroupName="nav" Tag="M13,2 L5,13 L11,13 L10,22 L19,10 L13,10 Z"/>
           <RadioButton x:Name="NavClean" Style="{StaticResource Nav}" GroupName="nav" Tag="M4,7 L20,7 M9,7 L9,4 L15,4 L15,7 M6,7 L7,20 L17,20 L18,7 M10,11 L10,16 M14,11 L14,16"/>
@@ -300,6 +302,19 @@
               </UniformGrid>
             </Grid>
 
+            <Border Style="{StaticResource Card}" Margin="0,16,0,0" BorderBrush="#55FF6D00">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Button x:Name="BtnScanPc" Style="{StaticResource Btn}" Tag="t:scan.btn" Margin="0,0,10,0"/>
+                  <Button x:Name="BtnApplyRec" Style="{StaticResource Primary}" Tag="t:scan.apply" IsEnabled="False"/>
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock Tag="t:scan.title" FontWeight="SemiBold" FontSize="15.5"/>
+                  <TextBlock x:Name="TxtScanPc" Foreground="{StaticResource Muted}" Margin="0,4,0,0"/>
+                </StackPanel>
+              </DockPanel>
+            </Border>
+
             <TextBlock Tag="t:home.presets" Style="{StaticResource H2}" Margin="0,30,0,2"/>
             <TextBlock Tag="t:home.presetsSub" Style="{StaticResource Sub}" Margin="0,0,0,14"/>
             <UniformGrid x:Name="PresetGrid" Columns="3"/>
@@ -329,6 +344,38 @@
           <ScrollViewer Grid.Row="2" x:Name="TweakScroll">
             <StackPanel x:Name="TweakList" Margin="0,0,0,24"/>
           </ScrollViewer>
+        </Grid>
+
+        <!-- APPS -->
+        <Grid x:Name="PageApps" Visibility="Collapsed" Margin="32,8,32,0">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <StackPanel>
+            <TextBlock Tag="t:apps.title" Style="{StaticResource H1}"/>
+            <TextBlock Tag="t:apps.sub" Style="{StaticResource Sub}"/>
+          </StackPanel>
+          <ScrollViewer Grid.Row="1" Margin="0,18,0,0"><StackPanel x:Name="AppList"/></ScrollViewer>
+          <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="0,14,0,18">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="BtnAppsRefresh" Style="{StaticResource Btn}" Tag="t:apps.refresh" Margin="0,0,10,0"/>
+                <Button x:Name="BtnAppsRemove" Style="{StaticResource Primary}" Tag="t:apps.remove"/>
+              </StackPanel>
+              <TextBlock x:Name="TxtApps" VerticalAlignment="Center" Foreground="{StaticResource Muted}"/>
+            </DockPanel>
+          </Border>
+        </Grid>
+
+        <!-- STARTUP -->
+        <Grid x:Name="PageStartup" Visibility="Collapsed" Margin="32,8,32,0">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <DockPanel>
+            <TextBlock x:Name="TxtStartupCount" DockPanel.Dock="Right" Style="{StaticResource Small}" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+            <StackPanel>
+              <TextBlock Tag="t:startup.title" Style="{StaticResource H1}"/>
+              <TextBlock Tag="t:startup.sub" Style="{StaticResource Sub}"/>
+            </StackPanel>
+          </DockPanel>
+          <ScrollViewer Grid.Row="1" Margin="0,18,0,0"><StackPanel x:Name="StartupList" Margin="0,0,0,24"/></ScrollViewer>
         </Grid>
 
         <!-- MEMORY -->
@@ -495,10 +542,14 @@
                   <Button x:Name="BtnRestorePoint" DockPanel.Dock="Right" Style="{StaticResource Primary}" HorizontalAlignment="Right" Tag="t:backup.rp"/>
                   <TextBlock Tag="t:backup.rp.d" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
                 </DockPanel>
+                <TextBlock Tag="t:backup.cli" Style="{StaticResource Small}" Margin="0,14,0,0"/>
+                <TextBox x:Name="TxtCli" IsReadOnly="True" Background="#121216" Foreground="#F2F2F5" BorderBrush="#2A2A33" Padding="10,7" Margin="0,6,0,0" FontFamily="Consolas" FlowDirection="LeftToRight"/>
                 <WrapPanel Margin="0,16,0,0">
                   <Button x:Name="BtnUndoAll" Style="{StaticResource Btn}" Tag="t:backup.undoAll" Margin="0,0,10,8"/>
                   <Button x:Name="BtnSysRestore" Style="{StaticResource Btn}" Tag="t:backup.open" Margin="0,0,10,8"/>
                   <Button x:Name="BtnFolder" Style="{StaticResource Btn}" Tag="t:backup.folder" Margin="0,0,10,8"/>
+                  <Button x:Name="BtnExport" Style="{StaticResource Btn}" Tag="t:backup.export" Margin="0,0,10,8"/>
+                  <Button x:Name="BtnImport" Style="{StaticResource Btn}" Tag="t:backup.import" Margin="0,0,10,8"/>
                 </WrapPanel>
               </StackPanel>
             </Border>

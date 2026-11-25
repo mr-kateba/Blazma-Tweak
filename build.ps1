@@ -22,9 +22,10 @@ $core = Read-Utf8 'src\core.ps1'
 $xaml = Protect-Xml (Read-Utf8 'src\ui.xaml')
 $tweaks = Protect-Json ((Read-Utf8 'config\tweaks.json') | ConvertFrom-Json | ConvertTo-Json -Depth 10 -Compress)
 $strings = Protect-Json ((Read-Utf8 'config\strings.json') | ConvertFrom-Json | ConvertTo-Json -Depth 10 -Compress)
+$apps = Protect-Json ((Read-Utf8 'config\apps.json') | ConvertFrom-Json | ConvertTo-Json -Depth 10 -Compress)
 Assert-Ascii 'src\main.ps1' $main
 Assert-Ascii 'src\core.ps1' $core
-foreach ($p in @(@('core', $core), @('xaml', $xaml), @('tweaks', $tweaks), @('strings', $strings))) { Assert-HereString $p[0] $p[1] }
+foreach ($p in @(@('core', $core), @('xaml', $xaml), @('tweaks', $tweaks), @('strings', $strings), @('apps', $apps))) { Assert-HereString $p[0] $p[1] }
 
 # The parts go right after the param() block, which has to stay first in the script.
 $cut = $main.IndexOf('$BTVersion =')
@@ -33,7 +34,8 @@ $nl = "`r`n"
 $embedded = '$BTCoreText = @''' + $nl + $core + $nl + '''@' + $nl +
             '$BTXaml = @''' + $nl + $xaml + $nl + '''@' + $nl +
             '$BTTweaksJson = @''' + $nl + $tweaks + $nl + '''@' + $nl +
-            '$BTStringsJson = @''' + $nl + $strings + $nl + '''@' + $nl + $nl
+            '$BTStringsJson = @''' + $nl + $strings + $nl + '''@' + $nl +
+            '$BTAppsJson = @''' + $nl + $apps + $nl + '''@' + $nl + $nl
 $out = $main.Substring(0, $cut) + $embedded + $main.Substring($cut)
 $out = $out -replace "`r?`n", "`r`n"
 

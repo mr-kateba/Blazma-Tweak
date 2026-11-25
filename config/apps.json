@@ -1,0 +1,310 @@
+{
+ "groups": [
+  "ms",
+  "ads",
+  "xbox"
+ ],
+ "apps": [
+  {
+   "match": "Microsoft.BingNews",
+   "group": "ms",
+   "default": true,
+   "ar": "الأخبار",
+   "en": "News"
+  },
+  {
+   "match": "Microsoft.BingWeather",
+   "group": "ms",
+   "default": false,
+   "ar": "الطقس",
+   "en": "Weather"
+  },
+  {
+   "match": "Microsoft.BingSearch",
+   "group": "ms",
+   "default": true,
+   "ar": "بحث Bing",
+   "en": "Bing Search"
+  },
+  {
+   "match": "Microsoft.GetHelp",
+   "group": "ms",
+   "default": true,
+   "ar": "الحصول على مساعدة",
+   "en": "Get Help"
+  },
+  {
+   "match": "Microsoft.Getstarted",
+   "group": "ms",
+   "default": true,
+   "ar": "التلميحات",
+   "en": "Tips"
+  },
+  {
+   "match": "Microsoft.MicrosoftSolitaireCollection",
+   "group": "ms",
+   "default": true,
+   "ar": "مجموعة سوليتير",
+   "en": "Solitaire Collection"
+  },
+  {
+   "match": "Microsoft.MicrosoftOfficeHub",
+   "group": "ms",
+   "default": true,
+   "ar": "Microsoft 365 (Office)",
+   "en": "Microsoft 365 (Office)"
+  },
+  {
+   "match": "Microsoft.People",
+   "group": "ms",
+   "default": true,
+   "ar": "الأشخاص",
+   "en": "People"
+  },
+  {
+   "match": "Microsoft.PowerAutomateDesktop",
+   "group": "ms",
+   "default": true,
+   "ar": "Power Automate",
+   "en": "Power Automate"
+  },
+  {
+   "match": "Microsoft.Todos",
+   "group": "ms",
+   "default": false,
+   "ar": "Microsoft To Do",
+   "en": "Microsoft To Do"
+  },
+  {
+   "match": "Microsoft.WindowsFeedbackHub",
+   "group": "ms",
+   "default": true,
+   "ar": "مركز الملاحظات",
+   "en": "Feedback Hub"
+  },
+  {
+   "match": "Microsoft.WindowsMaps",
+   "group": "ms",
+   "default": true,
+   "ar": "الخرائط",
+   "en": "Maps"
+  },
+  {
+   "match": "Microsoft.ZuneVideo",
+   "group": "ms",
+   "default": true,
+   "ar": "أفلام وتلفزيون",
+   "en": "Movies & TV"
+  },
+  {
+   "match": "Clipchamp.Clipchamp",
+   "group": "ms",
+   "default": true,
+   "ar": "Clipchamp (محرر الفيديو)",
+   "en": "Clipchamp"
+  },
+  {
+   "match": "MSTeams",
+   "group": "ms",
+   "default": true,
+   "ar": "Teams الشخصي",
+   "en": "Teams (personal)"
+  },
+  {
+   "match": "MicrosoftTeams",
+   "group": "ms",
+   "default": true,
+   "ar": "Teams القديم",
+   "en": "Teams (classic)"
+  },
+  {
+   "match": "Microsoft.549981C3F5F10",
+   "group": "ms",
+   "default": true,
+   "ar": "Cortana",
+   "en": "Cortana"
+  },
+  {
+   "match": "Microsoft.WindowsSoundRecorder",
+   "group": "ms",
+   "default": false,
+   "ar": "مسجّل الصوت",
+   "en": "Sound Recorder"
+  },
+  {
+   "match": "Microsoft.WindowsAlarms",
+   "group": "ms",
+   "default": false,
+   "ar": "المنبّه والساعة",
+   "en": "Clock"
+  },
+  {
+   "match": "Microsoft.YourPhone",
+   "group": "ms",
+   "default": false,
+   "ar": "رابط الهاتف",
+   "en": "Phone Link"
+  },
+  {
+   "match": "Microsoft.Windows.DevHome",
+   "group": "ms",
+   "default": true,
+   "ar": "Dev Home",
+   "en": "Dev Home"
+  },
+  {
+   "match": "Microsoft.OutlookForWindows",
+   "group": "ms",
+   "default": false,
+   "ar": "Outlook الجديد",
+   "en": "Outlook (new)"
+  },
+  {
+   "match": "Microsoft.Copilot",
+   "group": "ms",
+   "default": true,
+   "ar": "Copilot",
+   "en": "Copilot"
+  },
+  {
+   "match": "MicrosoftCorporationII.QuickAssist",
+   "group": "ms",
+   "default": false,
+   "ar": "المساعدة السريعة",
+   "en": "Quick Assist"
+  },
+  {
+   "match": "Microsoft.MixedReality.Portal",
+   "group": "ms",
+   "default": true,
+   "ar": "الواقع المختلط",
+   "en": "Mixed Reality Portal"
+  },
+  {
+   "match": "Microsoft.Microsoft3DViewer",
+   "group": "ms",
+   "default": true,
+   "ar": "عارض 3D",
+   "en": "3D Viewer"
+  },
+  {
+   "match": "Microsoft.SkypeApp",
+   "group": "ms",
+   "default": true,
+   "ar": "Skype",
+   "en": "Skype"
+  },
+  {
+   "match": "Microsoft.MicrosoftPCManager",
+   "group": "ms",
+   "default": false,
+   "ar": "Microsoft PC Manager",
+   "en": "Microsoft PC Manager"
+  },
+  {
+   "match": "Microsoft.MicrosoftStickyNotes",
+   "group": "ms",
+   "default": false,
+   "ar": "الملاحظات اللاصقة",
+   "en": "Sticky Notes"
+  },
+  {
+   "match": "king.com.*",
+   "group": "ads",
+   "default": true,
+   "ar": "ألعاب Candy Crush",
+   "en": "Candy Crush games"
+  },
+  {
+   "match": "*Disney*",
+   "group": "ads",
+   "default": true,
+   "ar": "Disney+",
+   "en": "Disney+"
+  },
+  {
+   "match": "Facebook.*",
+   "group": "ads",
+   "default": true,
+   "ar": "Facebook",
+   "en": "Facebook"
+  },
+  {
+   "match": "*TikTok*",
+   "group": "ads",
+   "default": true,
+   "ar": "TikTok",
+   "en": "TikTok"
+  },
+  {
+   "match": "*Instagram*",
+   "group": "ads",
+   "default": true,
+   "ar": "Instagram",
+   "en": "Instagram"
+  },
+  {
+   "match": "AmazonVideo.PrimeVideo",
+   "group": "ads",
+   "default": true,
+   "ar": "Prime Video",
+   "en": "Prime Video"
+  },
+  {
+   "match": "*LinkedIn*",
+   "group": "ads",
+   "default": true,
+   "ar": "LinkedIn",
+   "en": "LinkedIn"
+  },
+  {
+   "match": "SpotifyAB.SpotifyMusic",
+   "group": "ads",
+   "default": false,
+   "ar": "Spotify",
+   "en": "Spotify"
+  },
+  {
+   "match": "*Netflix*",
+   "group": "ads",
+   "default": false,
+   "ar": "Netflix",
+   "en": "Netflix"
+  },
+  {
+   "match": "Microsoft.GamingApp",
+   "group": "xbox",
+   "default": false,
+   "ar": "تطبيق Xbox",
+   "en": "Xbox app"
+  },
+  {
+   "match": "Microsoft.XboxGamingOverlay",
+   "group": "xbox",
+   "default": false,
+   "ar": "شريط الألعاب (Game Bar)",
+   "en": "Xbox Game Bar"
+  },
+  {
+   "match": "Microsoft.XboxSpeechToTextOverlay",
+   "group": "xbox",
+   "default": false,
+   "ar": "تحويل الصوت لنص في Xbox",
+   "en": "Xbox speech-to-text"
+  },
+  {
+   "match": "Microsoft.Xbox.TCUI",
+   "group": "xbox",
+   "default": false,
+   "ar": "واجهة Xbox Live",
+   "en": "Xbox Live UI"
+  },
+  {
+   "match": "Microsoft.XboxIdentityProvider",
+   "group": "xbox",
+   "default": false,
+   "ar": "تسجيل الدخول في Xbox",
+   "en": "Xbox Identity Provider"
+  }
+ ]
+}

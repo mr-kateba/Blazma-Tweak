@@ -542,7 +542,11 @@
      "type": "DWord",
      "value": 1
     }
-   ]
+   ],
+   "when": {
+    "laptop": false
+   },
+   "rec": true
   },
   {
    "id": "perf.priority",
@@ -596,7 +600,8 @@
      "value": 0,
      "default": 1
     }
-   ]
+   ],
+   "rec": true
   },
   {
    "id": "perf.lastaccess",
@@ -680,7 +685,11 @@
    },
    "apply": "Disable-MMAgent -MemoryCompression -ErrorAction Stop",
    "undo": "Enable-MMAgent -MemoryCompression -ErrorAction Stop",
-   "detect": "-not (Get-MMAgent).MemoryCompression"
+   "detect": "-not (Get-MMAgent).MemoryCompression",
+   "when": {
+    "ramMin": 16
+   },
+   "rec": true
   },
   {
    "id": "mem.sysmain",
@@ -704,7 +713,11 @@
      "start": "Disabled",
      "default": "Automatic"
     }
-   ]
+   ],
+   "when": {
+    "ssd": true
+   },
+   "rec": true
   },
   {
    "id": "mem.paging",
@@ -730,7 +743,11 @@
      "value": 1,
      "default": 0
     }
-   ]
+   ],
+   "when": {
+    "ramMin": 16
+   },
+   "rec": true
   },
   {
    "id": "mem.svchost",
@@ -768,7 +785,10 @@
    },
    "apply": "$cs=Get-CimInstance Win32_ComputerSystem; if($cs.AutomaticManagedPagefile){ Set-CimInstance -InputObject $cs -Property @{AutomaticManagedPagefile=$false} }; Get-CimInstance Win32_PageFileSetting | Remove-CimInstance",
    "undo": "$cs=Get-CimInstance Win32_ComputerSystem; Set-CimInstance -InputObject $cs -Property @{AutomaticManagedPagefile=$true}",
-   "detect": "$cs=Get-CimInstance Win32_ComputerSystem; (-not $cs.AutomaticManagedPagefile) -and -not (Get-CimInstance Win32_PageFileSetting)"
+   "detect": "$cs=Get-CimInstance Win32_ComputerSystem; (-not $cs.AutomaticManagedPagefile) -and -not (Get-CimInstance Win32_PageFileSetting)",
+   "when": {
+    "ramMin": 32
+   }
   },
   {
    "id": "priv.telemetry",
@@ -1747,7 +1767,11 @@
      "start": "Disabled",
      "default": "Automatic"
     }
-   ]
+   ],
+   "when": {
+    "printers": 0
+   },
+   "rec": true
   },
   {
    "id": "svc.xbox",
@@ -1824,7 +1848,10 @@
    },
    "apply": "powercfg /hibernate off",
    "undo": "powercfg /hibernate on",
-   "detect": "(Get-ItemPropertyValue 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name HibernateEnabled -ErrorAction SilentlyContinue) -eq 0"
+   "detect": "(Get-ItemPropertyValue 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name HibernateEnabled -ErrorAction SilentlyContinue) -eq 0",
+   "when": {
+    "laptop": false
+   }
   },
   {
    "id": "power.usb",
@@ -1863,7 +1890,10 @@
    },
    "apply": "powercfg /setacvalueindex scheme_current sub_processor CPMINCORES 100; powercfg /setactive scheme_current",
    "undo": "powercfg /setacvalueindex scheme_current sub_processor CPMINCORES 5; powercfg /setactive scheme_current",
-   "detect": "$m=[regex]::Matches(((powercfg /query scheme_current sub_processor CPMINCORES) -join ' '),'0x[0-9a-fA-F]{8}'); $m.Count -ge 2 -and [Convert]::ToInt32($m[$m.Count-2].Value,16) -eq 100"
+   "detect": "$m=[regex]::Matches(((powercfg /query scheme_current sub_processor CPMINCORES) -join ' '),'0x[0-9a-fA-F]{8}'); $m.Count -ge 2 -and [Convert]::ToInt32($m[$m.Count-2].Value,16) -eq 100",
+   "when": {
+    "laptop": false
+   }
   },
   {
    "id": "power.throttle",
@@ -1883,7 +1913,1130 @@
    },
    "apply": "powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMIN 100; powercfg /setactive scheme_current",
    "undo": "powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMIN 5; powercfg /setactive scheme_current",
-   "detect": "$m=[regex]::Matches(((powercfg /query scheme_current sub_processor PROCTHROTTLEMIN) -join ' '),'0x[0-9a-fA-F]{8}'); $m.Count -ge 2 -and [Convert]::ToInt32($m[$m.Count-2].Value,16) -eq 100"
+   "detect": "$m=[regex]::Matches(((powercfg /query scheme_current sub_processor PROCTHROTTLEMIN) -join ' '),'0x[0-9a-fA-F]{8}'); $m.Count -ge 2 -and [Convert]::ToInt32($m[$m.Count-2].Value,16) -eq 100",
+   "when": {
+    "laptop": false
+   },
+   "rec": true
+  },
+  {
+   "id": "gaming.timer",
+   "cat": "gaming",
+   "risk": "advanced",
+   "presets": [
+    "max"
+   ],
+   "restart": "reboot",
+   "ar": {
+    "name": "دقة مؤقت النظام الكاملة",
+    "desc": "ويندوز 11 صار يقلل دقة المؤقت للبرامج في الخلفية. هذا يرجّع السلوك القديم، يفيد ثبات الفريمات. يحتاج إعادة تشغيل."
+   },
+   "en": {
+    "name": "Global timer resolution",
+    "desc": "Windows 11 lowers timer precision for background apps; this restores the old behaviour for steadier frame times. Needs a restart."
+   },
+   "rec": true,
+   "reg": [
+    {
+     "path": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+     "name": "GlobalTimerResolutionRequests",
+     "type": "DWord",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "id": "gaming.keyboard",
+   "cat": "gaming",
+   "risk": "safe",
+   "presets": [
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "أسرع استجابة للكيبورد",
+    "desc": "يقلل التأخير قبل ما الزر يبدأ يتكرر لما تضغط عليه مطوّل."
+   },
+   "en": {
+    "name": "Faster keyboard repeat",
+    "desc": "Shortens the delay before a held key starts repeating."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Control Panel\\Keyboard",
+     "name": "KeyboardDelay",
+     "type": "String",
+     "value": "0",
+     "default": "1"
+    },
+    {
+     "path": "HKCU\\Control Panel\\Keyboard",
+     "name": "KeyboardSpeed",
+     "type": "String",
+     "value": "31",
+     "default": "31"
+    }
+   ]
+  },
+  {
+   "id": "gaming.windowed",
+   "cat": "gaming",
+   "risk": "safe",
+   "presets": [
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "تحسينات الألعاب في وضع النافذة",
+    "desc": "الألعاب اللي تشتغل بنافذة أو بدون إطار تاخذ تأخير أقل، وتدعم معدل التحديث المتغير."
+   },
+   "en": {
+    "name": "Optimisations for windowed games",
+    "desc": "Windowed and borderless games get lower latency and variable refresh rate."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences",
+     "name": "DirectXUserGlobalSettings",
+     "type": "String",
+     "value": "SwapEffectUpgradeEnable=1;"
+    }
+   ]
+  },
+  {
+   "id": "gaming.msi",
+   "cat": "gaming",
+   "risk": "expert",
+   "presets": [],
+   "restart": "reboot",
+   "ar": {
+    "name": "وضع MSI لكرت الشاشة",
+    "desc": "كرت الشاشة يرسل المقاطعات بطريقة أحدث وأسرع، يقلل التأخير في بعض الأجهزة. يحتاج إعادة تشغيل."
+   },
+   "en": {
+    "name": "MSI mode for the graphics card",
+    "desc": "The GPU uses message-signalled interrupts, which can lower latency on some PCs. Needs a restart."
+   },
+   "apply": "Get-PnpDevice -Class Display -PresentOnly | Where-Object InstanceId -like 'PCI*' | ForEach-Object { $k = \"HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\$($_.InstanceId)\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties\"; if (-not (Test-Path $k)) { New-Item -Path $k -Force | Out-Null }; Set-ItemProperty -Path $k -Name MSISupported -Type DWord -Value 1 }",
+   "undo": "Get-PnpDevice -Class Display -PresentOnly | Where-Object InstanceId -like 'PCI*' | ForEach-Object { $k = \"HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\$($_.InstanceId)\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties\"; if (Test-Path $k) { Set-ItemProperty -Path $k -Name MSISupported -Type DWord -Value 0 } }",
+   "detect": "$d = @(Get-PnpDevice -Class Display -PresentOnly | Where-Object InstanceId -like 'PCI*'); $d.Count -gt 0 -and -not ($d | Where-Object { (Get-ItemProperty \"HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\$($_.InstanceId)\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties\" -ErrorAction SilentlyContinue).MSISupported -ne 1 })"
+  },
+  {
+   "id": "gaming.vbs",
+   "cat": "gaming",
+   "risk": "expert",
+   "presets": [],
+   "restart": "reboot",
+   "ar": {
+    "name": "إيقاف تكامل الذاكرة (Core Isolation)",
+    "desc": "يرفع الفريمات في بعض الألعاب، لكنه يقلل حماية النظام من البرامج الخبيثة. يحتاج إعادة تشغيل."
+   },
+   "en": {
+    "name": "Turn off memory integrity (Core Isolation)",
+    "desc": "Can raise FPS in some games but weakens protection against malware. Needs a restart."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity",
+     "name": "Enabled",
+     "type": "DWord",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": "net.nicpower",
+   "cat": "network",
+   "risk": "advanced",
+   "presets": [
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "منع ويندوز من إطفاء كرت الشبكة",
+    "desc": "ويندوز ما يطفي كرت الشبكة لتوفير الطاقة، فما ينقطع النت لحظياً وسط اللعب."
+   },
+   "en": {
+    "name": "Keep the network adapter awake",
+    "desc": "Windows no longer powers the adapter down to save energy, so the connection doesn't drop mid-game."
+   },
+   "rec": true,
+   "apply": "Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Disable-NetAdapterPowerManagement -Name $_.Name -NoRestart -ErrorAction SilentlyContinue }",
+   "undo": "Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Enable-NetAdapterPowerManagement -Name $_.Name -NoRestart -ErrorAction SilentlyContinue }",
+   "detect": "$p = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | Get-NetAdapterPowerManagement -ErrorAction SilentlyContinue); $p.Count -gt 0 -and -not ($p | Where-Object { $_.AllowComputerToTurnOffDevice -eq 'Enabled' })"
+  },
+  {
+   "id": "net.eee",
+   "cat": "network",
+   "risk": "advanced",
+   "presets": [
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف توفير الطاقة في الإيثرنت (EEE)",
+    "desc": "يمنع كرت الإيثرنت من دخول وضع التوفير بين الحزم، أثبت للبنق."
+   },
+   "en": {
+    "name": "Turn off Energy-Efficient Ethernet",
+    "desc": "Stops the Ethernet adapter idling between packets; steadier ping."
+   },
+   "apply": "Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword '*EEE' -RegistryValue 0 -NoRestart -ErrorAction SilentlyContinue }",
+   "undo": "Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword '*EEE' -RegistryValue 1 -NoRestart -ErrorAction SilentlyContinue }",
+   "detect": "$p = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | Get-NetAdapterAdvancedProperty -RegistryKeyword '*EEE' -ErrorAction SilentlyContinue); $p.Count -gt 0 -and -not ($p | Where-Object { [string]$_.RegistryValue -ne '0' })",
+   "when": {
+    "laptop": false
+   }
+  },
+  {
+   "id": "net.interrupt",
+   "cat": "network",
+   "risk": "expert",
+   "presets": [],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف تجميع المقاطعات في كرت الشبكة",
+    "desc": "كل حزمة تتعالج فوراً بدل ما تتجمع، أقل تأخير وأكثر استهلاك للمعالج."
+   },
+   "en": {
+    "name": "Turn off interrupt moderation",
+    "desc": "Every packet is handled at once instead of batched: lower latency, more CPU use."
+   },
+   "apply": "Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword '*InterruptModeration' -RegistryValue 0 -NoRestart -ErrorAction SilentlyContinue }",
+   "undo": "Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword '*InterruptModeration' -RegistryValue 1 -NoRestart -ErrorAction SilentlyContinue }",
+   "detect": "$p = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | Get-NetAdapterAdvancedProperty -RegistryKeyword '*InterruptModeration' -ErrorAction SilentlyContinue); $p.Count -gt 0 -and -not ($p | Where-Object { [string]$_.RegistryValue -ne '0' })"
+  },
+  {
+   "id": "net.llmnr",
+   "cat": "network",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف LLMNR",
+    "desc": "بروتوكول قديم تستغله برامج التجسس على الشبكات المحلية. إيقافه أأمن وما يأثر على النت."
+   },
+   "en": {
+    "name": "Turn off LLMNR",
+    "desc": "An old protocol abused for attacks on local networks. Safer off; internet is unaffected."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient",
+     "name": "EnableMulticast",
+     "type": "DWord",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": "perf.storagesense",
+   "cat": "performance",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "تفعيل مستشعر التخزين",
+    "desc": "ويندوز ينظّف الملفات المؤقتة وسلة المحذوفات القديمة بنفسه لما يقل القرص."
+   },
+   "en": {
+    "name": "Turn on Storage Sense",
+    "desc": "Windows clears temporary files and old Recycle Bin items by itself when space runs low."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy",
+     "name": "01",
+     "type": "DWord",
+     "value": 1,
+     "default": 0
+    }
+   ]
+  },
+  {
+   "id": "perf.8dot3",
+   "cat": "performance",
+   "risk": "advanced",
+   "presets": [
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف أسماء الملفات القصيرة (8.3)",
+    "desc": "ويندوز ما يسوي اسم قصير قديم لكل ملف جديد، أسرع في المجلدات الكبيرة."
+   },
+   "en": {
+    "name": "Stop creating 8.3 short names",
+    "desc": "Windows stops making a legacy short name for every new file; faster in big folders."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+     "name": "NtfsDisable8dot3NameCreation",
+     "type": "DWord",
+     "value": 1,
+     "default": 2
+    }
+   ]
+  },
+  {
+   "id": "perf.reserved",
+   "cat": "performance",
+   "risk": "advanced",
+   "presets": [
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إلغاء التخزين المحجوز",
+    "desc": "ويندوز يحجز حوالي 7 جيجا من القرص للتحديثات. هذا يرجّعها لك."
+   },
+   "en": {
+    "name": "Release reserved storage",
+    "desc": "Windows keeps about 7 GB of disk for updates; this gives it back."
+   },
+   "apply": "Set-WindowsReservedStorageState -State Disabled -ErrorAction Stop",
+   "undo": "Set-WindowsReservedStorageState -State Enabled -ErrorAction Stop",
+   "detect": "(Get-WindowsReservedStorageState -ErrorAction SilentlyContinue).ReservedStorageState -eq 'Disabled'"
+  },
+  {
+   "id": "perf.maintenance",
+   "cat": "performance",
+   "risk": "advanced",
+   "presets": [],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف الصيانة التلقائية",
+    "desc": "ويندوز ما يشغّل الفحص والتجزئة لحاله وأنت تلعب. لازم تسوي التحديثات بنفسك أحياناً."
+   },
+   "en": {
+    "name": "Turn off automatic maintenance",
+    "desc": "Windows no longer runs scans and defrag by itself while you play; run updates yourself now and then."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\Maintenance",
+     "name": "MaintenanceDisabled",
+     "type": "DWord",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "id": "perf.edge",
+   "cat": "performance",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "منع Edge من العمل في الخلفية",
+    "desc": "Edge ما يشتغل مع الجهاز ولا يظل شغال بعد ما تقفله، يوفر رام."
+   },
+   "en": {
+    "name": "Stop Edge running in the background",
+    "desc": "Edge no longer starts with Windows or keeps running after you close it; saves RAM."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge",
+     "name": "StartupBoostEnabled",
+     "type": "DWord",
+     "value": 0
+    },
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge",
+     "name": "BackgroundModeEnabled",
+     "type": "DWord",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": "priv.lockscreen",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف إعلانات شاشة القفل",
+    "desc": "يشيل النصائح والإعلانات والحقائق اللي تطلع على شاشة القفل."
+   },
+   "en": {
+    "name": "Turn off lock-screen ads",
+    "desc": "Removes tips, ads and fun facts on the lock screen."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+     "name": "RotatingLockScreenOverlayEnabled",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+     "name": "SubscribedContent-338387Enabled",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.nags",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف «خلّنا نكمل إعداد جهازك»",
+    "desc": "ما يطلع لك ويندوز بعد التحديثات يطلب منك تسجّل حسابات وتفعّل خدمات."
+   },
+   "en": {
+    "name": "Turn off \"Let's finish setting up\"",
+    "desc": "Windows stops nagging you after updates to sign in and turn on services."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\UserProfileEngagement",
+     "name": "ScoobeSystemSettingEnabled",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+     "name": "SubscribedContent-310093Enabled",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.startrecs",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف اقتراحات قائمة ابدأ",
+    "desc": "قائمة ابدأ ما تعرض تطبيقات مقترحة وإشعارات الحساب."
+   },
+   "en": {
+    "name": "Turn off Start menu recommendations",
+    "desc": "Start stops showing suggested apps and account notifications."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "Start_IrisRecommendations",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "Start_AccountNotifications",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.explorerads",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف إعلانات OneDrive في المستكشف",
+    "desc": "المستكشف ما يعرض لك إشعارات اشتراك OneDrive وMicrosoft 365."
+   },
+   "en": {
+    "name": "Turn off ads in File Explorer",
+    "desc": "Explorer stops showing OneDrive and Microsoft 365 promotions."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "ShowSyncProviderNotifications",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.typing",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف جمع بيانات الكتابة",
+    "desc": "ويندوز ما يجمع اللي تكتبه وتخطه بيدك لتحسين خدماته."
+   },
+   "en": {
+    "name": "Stop collecting typing and inking data",
+    "desc": "Windows stops collecting what you type and write to improve its services."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\InputPersonalization",
+     "name": "RestrictImplicitInkCollection",
+     "type": "DWord",
+     "value": 1,
+     "default": 0
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\InputPersonalization",
+     "name": "RestrictImplicitTextCollection",
+     "type": "DWord",
+     "value": 1,
+     "default": 0
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\InputPersonalization\\TrainedDataStore",
+     "name": "HarvestContacts",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\Personalization\\Settings",
+     "name": "AcceptedPrivacyPolicy",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\input\\Settings",
+     "name": "InsightsEnabled",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.tracking",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف تتبّع البرامج اللي تفتحها",
+    "desc": "ويندوز ما يسجل البرامج اللي تشغّلها عشان يرتب قائمة ابدأ."
+   },
+   "en": {
+    "name": "Stop tracking app launches",
+    "desc": "Windows stops logging the apps you open to sort the Start menu."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "Start_TrackProgs",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.language",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إخفاء لغاتك عن المواقع",
+    "desc": "المواقع ما تقدر تعرف قائمة اللغات في جهازك."
+   },
+   "en": {
+    "name": "Hide your language list from websites",
+    "desc": "Websites can no longer read your list of languages."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Control Panel\\International\\User Profile",
+     "name": "HttpAcceptLanguageOptOut",
+     "type": "DWord",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.cloudsearch",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف البحث في السحابة",
+    "desc": "بحث ويندوز ما يدور في حسابك على الإنترنت وما يحفظ سجل البحث."
+   },
+   "en": {
+    "name": "Turn off cloud search",
+    "desc": "Windows search stops searching your online accounts and keeping search history."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\SearchSettings",
+     "name": "IsAADCloudSearchEnabled",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\SearchSettings",
+     "name": "IsMSACloudSearchEnabled",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\SearchSettings",
+     "name": "IsDeviceSearchHistoryEnabled",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.cortana",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف Cortana",
+    "desc": "يوقف المساعد القديم Cortana نهائياً."
+   },
+   "en": {
+    "name": "Turn off Cortana",
+    "desc": "Turns the old Cortana assistant off for good."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
+     "name": "AllowCortana",
+     "type": "DWord",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": "priv.speech",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف التعرّف على الصوت عبر الإنترنت",
+    "desc": "صوتك ما يترسل لمايكروسوفت للتعرّف عليه."
+   },
+   "en": {
+    "name": "Turn off online speech recognition",
+    "desc": "Your voice is no longer sent to Microsoft for recognition."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Speech_OneCore\\Settings\\OnlineSpeechPrivacy",
+     "name": "HasAccepted",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "priv.edgeext",
+   "cat": "privacy",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "Edge بدون اقتراحات وإعلانات",
+    "desc": "يوقف صفحة الترحيب والاقتراحات وإرسال بيانات التصفح لتخصيص الإعلانات في Edge."
+   },
+   "en": {
+    "name": "Quieter Edge",
+    "desc": "Turns off Edge's welcome pages, recommendations and browsing data for ad personalisation."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge",
+     "name": "HideFirstRunExperience",
+     "type": "DWord",
+     "value": 1
+    },
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge",
+     "name": "ShowRecommendationsEnabled",
+     "type": "DWord",
+     "value": 0
+    },
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge",
+     "name": "PersonalizationReportingEnabled",
+     "type": "DWord",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": "ui.seconds",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [],
+   "restart": "explorer",
+   "ar": {
+    "name": "الثواني في ساعة شريط المهام",
+    "desc": "تشوف الثواني جنب الوقت."
+   },
+   "en": {
+    "name": "Seconds on the taskbar clock",
+    "desc": "Shows seconds next to the time."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "ShowSecondsInSystemClock",
+     "type": "DWord",
+     "value": 1,
+     "default": 0
+    }
+   ]
+  },
+  {
+   "id": "ui.compact",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [
+    "max"
+   ],
+   "restart": "explorer",
+   "ar": {
+    "name": "المستكشف المضغوط",
+    "desc": "مسافات أقل بين الملفات، تشوف ملفات أكثر في الشاشة."
+   },
+   "en": {
+    "name": "Compact File Explorer",
+    "desc": "Less spacing between items so more files fit on screen."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "UseCompactMode",
+     "type": "DWord",
+     "value": 1,
+     "default": 0
+    }
+   ]
+  },
+  {
+   "id": "ui.recent",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [],
+   "restart": "explorer",
+   "ar": {
+    "name": "إخفاء الملفات الأخيرة في المستكشف",
+    "desc": "الوصول السريع ما يعرض الملفات والمجلدات اللي فتحتها مؤخراً."
+   },
+   "en": {
+    "name": "Hide recent files in Explorer",
+    "desc": "Quick access no longer shows recently opened files and folders."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer",
+     "name": "ShowRecent",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    },
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer",
+     "name": "ShowFrequent",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "ui.chat",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": "explorer",
+   "ar": {
+    "name": "إخفاء زر Chat/Teams في شريط المهام",
+    "desc": "يشيل زر الدردشة من شريط المهام."
+   },
+   "en": {
+    "name": "Hide the Chat button",
+    "desc": "Removes the Chat/Teams button from the taskbar."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "TaskbarMn",
+     "type": "DWord",
+     "value": 0,
+     "default": 1
+    }
+   ]
+  },
+  {
+   "id": "ui.searchicon",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [],
+   "restart": "explorer",
+   "ar": {
+    "name": "البحث كأيقونة صغيرة",
+    "desc": "مربع البحث الكبير في شريط المهام يصير أيقونة، تاخذ مساحة أقل."
+   },
+   "en": {
+    "name": "Search as a small icon",
+    "desc": "The big taskbar search box becomes an icon and takes less room."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Search",
+     "name": "SearchboxTaskbarMode",
+     "type": "DWord",
+     "value": 1,
+     "default": 2
+    }
+   ]
+  },
+  {
+   "id": "ui.logonblur",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [],
+   "restart": null,
+   "ar": {
+    "name": "شاشة دخول بدون ضبابية",
+    "desc": "صورة شاشة الدخول تظهر واضحة بدون تأثير الضباب."
+   },
+   "en": {
+    "name": "Sharp sign-in background",
+    "desc": "The sign-in screen picture shows without the blur effect."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+     "name": "DisableAcrylicBackgroundOnLogon",
+     "type": "DWord",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "id": "ui.shortcut",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "بدون «- اختصار» في أسماء الاختصارات",
+    "desc": "الاختصارات الجديدة ما ينضاف لاسمها «- اختصار»."
+   },
+   "en": {
+    "name": "No \"- Shortcut\" suffix",
+    "desc": "New shortcuts no longer get \"- Shortcut\" added to their name."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\NamingTemplates",
+     "name": "ShortcutNameTemplate",
+     "type": "String",
+     "value": "%s.lnk"
+    }
+   ]
+  },
+  {
+   "id": "ui.shake",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف هزّ النافذة لتصغير الباقي",
+    "desc": "ما تتصغر كل النوافذ لو هزّيت نافذة بالغلط."
+   },
+   "en": {
+    "name": "Turn off Aero Shake",
+    "desc": "Shaking a window no longer minimises all the others."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "DisallowShaking",
+     "type": "DWord",
+     "value": 1,
+     "default": 0
+    }
+   ]
+  },
+  {
+   "id": "ui.copydetails",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "تفاصيل أكثر عند نسخ الملفات",
+    "desc": "نافذة النسخ تفتح على العرض المفصّل بالسرعة والرسم."
+   },
+   "en": {
+    "name": "Detailed copy dialog",
+    "desc": "The copy dialog opens with speed and graph details."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\OperationStatusManager",
+     "name": "EnthusiastMode",
+     "type": "DWord",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "id": "ui.morepins",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [
+    "basic",
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "تثبيت تطبيقات أكثر في قائمة ابدأ",
+    "desc": "قائمة ابدأ تعرض صفوف تثبيت أكثر وتوصيات أقل."
+   },
+   "en": {
+    "name": "More pins in Start",
+    "desc": "Start shows more pinned rows and fewer recommendations."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+     "name": "Start_Layout",
+     "type": "DWord",
+     "value": 1,
+     "default": 0
+    }
+   ]
+  },
+  {
+   "id": "ui.thispcdesktop",
+   "cat": "interface",
+   "risk": "safe",
+   "presets": [],
+   "restart": "explorer",
+   "ar": {
+    "name": "أيقونة «هذا الكمبيوتر» على سطح المكتب",
+    "desc": "ترجع أيقونة الكمبيوتر لسطح المكتب."
+   },
+   "en": {
+    "name": "This PC on the desktop",
+    "desc": "Puts the This PC icon back on the desktop."
+   },
+   "reg": [
+    {
+     "path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel",
+     "name": "{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
+     "type": "DWord",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": "upd.defer",
+   "cat": "updates",
+   "risk": "advanced",
+   "presets": [],
+   "restart": null,
+   "ar": {
+    "name": "تأجيل تحديثات الميزات سنة",
+    "desc": "ويندوز ما ينزّل التحديثات الكبيرة (مثل 24H2 إلى 25H2) إلا بعد سنة. التحديثات الأمنية تظل تنزل. لنسخة Pro."
+   },
+   "en": {
+    "name": "Defer feature updates for a year",
+    "desc": "Big upgrades wait a year; security updates keep coming. Pro editions."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+     "name": "DeferFeatureUpdates",
+     "type": "DWord",
+     "value": 1
+    },
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+     "name": "DeferFeatureUpdatesPeriodInDays",
+     "type": "DWord",
+     "value": 365
+    }
+   ]
+  },
+  {
+   "id": "upd.msrt",
+   "cat": "updates",
+   "risk": "safe",
+   "presets": [
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "بدون أداة إزالة البرامج الضارة الشهرية",
+    "desc": "ويندوز ما ينزّل أداة MSRT كل شهر. Defender يحميك بدونها."
+   },
+   "en": {
+    "name": "Skip the monthly malware removal tool",
+    "desc": "Windows stops downloading MSRT each month; Defender still protects you."
+   },
+   "reg": [
+    {
+     "path": "HKLM\\SOFTWARE\\Policies\\Microsoft\\MRT",
+     "name": "DontOfferThroughWUAU",
+     "type": "DWord",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "id": "svc.extra2",
+   "cat": "services",
+   "risk": "safe",
+   "presets": [
+    "gaming",
+    "max"
+   ],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف خدمات المحفظة والرقابة الأبوية",
+    "desc": "خدمة المحفظة، وخدمة مراقبة الأطفال، وجامع التشخيص، لو ما تستخدمها."
+   },
+   "en": {
+    "name": "Turn off Wallet, parental controls and diagnostics hub",
+    "desc": "Wallet, Family Safety monitoring and the diagnostics hub collector, if you don't use them."
+   },
+   "svc": [
+    {
+     "name": "WalletService",
+     "start": "Disabled",
+     "default": "Manual"
+    },
+    {
+     "name": "WpcMonSvc",
+     "start": "Disabled",
+     "default": "Manual"
+    },
+    {
+     "name": "diagnosticshub.standardcollector.service",
+     "start": "Disabled",
+     "default": "Manual"
+    }
+   ]
+  },
+  {
+   "id": "svc.geo",
+   "cat": "services",
+   "risk": "advanced",
+   "presets": [],
+   "restart": null,
+   "ar": {
+    "name": "إيقاف خدمة الموقع الجغرافي",
+    "desc": "توقف الخدمة اللي تحدد مكانك. الطقس والخرائط ما تعرف موقعك."
+   },
+   "en": {
+    "name": "Turn off the geolocation service",
+    "desc": "Stops the service that works out your location; weather and maps can't find you."
+   },
+   "svc": [
+    {
+     "name": "lfsvc",
+     "start": "Disabled",
+     "default": "Manual"
+    }
+   ]
   }
  ]
 }

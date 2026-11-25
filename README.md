@@ -31,15 +31,30 @@ irm mr-kateba.github.io/tweak | iex
 
 ## وش فيه؟
 
-- **60 تحسين** في 9 أقسام: الألعاب، الأداء، الرام، الخصوصية، الواجهة، الشبكة، التحديثات، الخدمات، الطاقة. كل تحسين له زر تشغيل وإطفاء، ووصف عربي واضح، ودرجة خطورة (آمن، متقدم، خبير).
+- **100 تحسين** في 9 أقسام: الألعاب، الأداء، الرام، الخصوصية، الواجهة، الشبكة، التحديثات، الخدمات، الطاقة. كل تحسين له زر تشغيل وإطفاء، ووصف عربي واضح، ودرجة خطورة (آمن، متقدم، خبير).
 - **يعرف حالة جهازك:** أول ما يفتح يقرأ وش المطبّق أصلاً، ويعطيك «مستوى التحسين».
+- **«افحص جهازي»:** يعرف كم رامك، وهل قرصك SSD، وهل جهازك لابتوب، وهل عندك طابعة، ويقترح التحسينات اللي تناسب جهازك بالضبط.
 - **تحسين بضغطة:** ثلاث مستويات جاهزة: أساسي وآمن، للألعاب، أقصى أداء.
+- **التطبيقات الزايدة:** احذف تطبيقات ويندوز المثبتة مسبقاً (Candy Crush، Clipchamp، الأخبار، Teams…) وترجّعها من المتجر متى ما بغيت.
+- **بدء التشغيل:** كل البرامج اللي تشتغل مع الجهاز، تطفيها بضغطة بنفس طريقة مدير المهام، بدون ما ينحذف شي.
 - **صفحة الرام:** تشوف الرام المستخدمة والمعدّلة والاحتياطية (الكاش) والفاضية بشكل حي، وتنظّفها بضغطة، أو تخليه ينظّفها لحاله لما تقل.
 - **الطاقة:** خطط الطاقة، وإضافة خطة «الأداء الأقصى» المخفية في ويندوز، وإعدادات المعالج و USB.
 - **التنظيف:** يفحص الملفات المؤقتة، وكاش التحديثات، وكاش الشيدرز، وملفات الأعطال، وسلة المحذوفات، ويوريك الحجم قبل الحذف.
 - **الشبكة:** قياس البنق، وتغيير DNS (Cloudflare، Google، Quad9، AdGuard)، وإصلاح الشبكة.
 - **النسخ والتراجع:** نقطة استعادة تلقائية قبل أول تعديل، وكل قيمة قديمة محفوظة، وزر يرجّع كل شي مثل ما كان.
+- **صدّر واستورد:** احفظ تحسيناتك في ملف وطبّقها على جهاز ثاني، أو بأمر واحد بدون واجهة.
 - **عربي أو إنجليزي** من زر في القائمة.
+
+## أوامر بدون واجهة
+
+```powershell
+$bt = [ScriptBlock]::Create((irm mr-kateba.github.io/tweak))
+& $bt -Preset recommended          # المقترح لجهازك (أو basic / gaming / max)
+& $bt -Apply gaming.dvr,ui.ext     # تحسينات بالاسم
+& $bt -Undo all                    # تراجع عن كل شي
+& $bt -Config my-settings.json     # ملف صدّرته من البرنامج
+& $bt -List                        # كل التحسينات وحالتها
+```
 
 ## صور
 
@@ -55,6 +70,10 @@ irm mr-kateba.github.io/tweak | iex
     <td align="center"><img src="docs/screenshots/net_ar.png" alt="الشبكة"><br>الشبكة</td>
   </tr>
   <tr>
+    <td align="center"><img src="docs/screenshots/startup_ar.png" alt="بدء التشغيل"><br>بدء التشغيل</td>
+    <td align="center"><img src="docs/screenshots/apps_ar.png" alt="التطبيقات"><br>التطبيقات</td>
+  </tr>
+  <tr>
     <td align="center"><img src="docs/screenshots/power_ar.png" alt="الطاقة"><br>الطاقة</td>
     <td align="center"><img src="docs/screenshots/backup_ar.png" alt="النسخ والتراجع"><br>النسخ والتراجع</td>
   </tr>
@@ -66,6 +85,10 @@ irm mr-kateba.github.io/tweak | iex
 - السجل الكامل لكل اللي صار في `%LOCALAPPDATA%\BlazmaTweak\log.txt`.
 - التحسينات «الخبير» تطلب تأكيد قبل التطبيق.
 - البرنامج ما يرسل أي بيانات، وكل الكود مفتوح هنا.
+
+## شكر
+
+قائمة التطبيقات الزايدة مستوحاة من [Win11Debloat](https://github.com/Raphire/Win11Debloat)، وبعض التحسينات من [Sophia Script](https://github.com/farag2/Sophia-Script-for-Windows)، والاثنين بترخيص MIT. التفاصيل في [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## للمطوّرين
 
@@ -85,4 +108,4 @@ irm mr-kateba.github.io/tweak | iex
 
 ---
 
-**English:** Blazma Tweak is a free, open-source Windows tuning tool with an Arabic (and English) interface: 60 reversible tweaks, a live RAM page with one-click and automatic cleaning, power plans, cleanup, DNS and network repair, restore points and full undo. Run `irm mr-kateba.github.io/tweak | iex` in an administrator PowerShell.
+**English:** Blazma Tweak is a free, open-source Windows tuning tool with an Arabic (and English) interface: 100 reversible tweaks, a PC scan that recommends what fits your hardware, built-in app removal, a startup manager, settings export/import and a command line, a live RAM page with one-click and automatic cleaning, power plans, cleanup, DNS and network repair, restore points and full undo. Run `irm mr-kateba.github.io/tweak | iex` in an administrator PowerShell.

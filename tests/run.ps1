@@ -101,7 +101,27 @@ Check "system: $($i.Cpu) | $($i.Gpu) | $($i.RamGB) GB | $($i.Os) $($i.Version)" 
 $plans = Get-BTPowerPlans
 Check "power plans: $(@($plans).Count)" (@($plans).Count -gt 0)
 $sizes = Measure-BTCleanTargets
+if (-not (Test-Path $BTDir)) { New-Item -ItemType Directory -Path $BTDir | Out-Null }
 Check ('cleanup scan: ' + (($sizes.Keys | Sort-Object | ForEach-Object { '{0}={1:n0}MB' -f $_, ($sizes[$_] / 1MB) }) -join ' ')) ($sizes.Count -eq 10)
+$pc = Get-BTProfile
+Check ("profile: {0} GB, ssd={1}, laptop={2}, printers={3}" -f $pc.RamGB, $pc.Ssd, $pc.Laptop, $pc.Printers) ($pc.RamGB -gt 0)
+$rec = @($cfg.tweaks | Where-Object { Test-BTRecommended $_ $pc })
+Check "recommended for this PC: $($rec.Count)" ($rec.Count -gt 10 -and -not ($rec | Where-Object risk -eq 'expert'))
+$apps = (([IO.File]::ReadAllText((Join-Path $root 'config\apps.json'), $utf8)) | ConvertFrom-Json).apps
+$ai = @(Get-BTApps $apps)
+Check ("apps: {0} in catalog, {1} installed here" -f $ai.Count, @($ai | Where-Object Installed).Count) ($ai.Count -eq $apps.Count)
+$st = @(Get-BTStartupItems)
+Check ("startup items: {0} ({1} on)" -f $st.Count, @($st | Where-Object Enabled).Count) ($true)
+# startup switch round trip on a fake HKCU entry
+$fakeItem = [pscustomobject]@{ Name = 'BlazmaTweakTestItem'; Hive = 'HKCU'; Approved = 'Run'; Kind = 'reg' }
+Set-BTStartupItem $fakeItem $false
+Check 'startup off' (-not (Test-BTStartupEnabled 'HKCU' 'Run' 'BlazmaTweakTestItem'))
+Set-BTStartupItem $fakeItem $true
+Check 'startup on again' (Test-BTStartupEnabled 'HKCU' 'Run' 'BlazmaTweakTestItem')
+Remove-BTRegValue "HKCU\$BTApprovedRoot\Run" 'BlazmaTweakTestItem'
+$cfgFile = Join-Path $BTDir 'export.json'
+Export-BTConfig $cfgFile @('gaming.dvr', 'ui.ext')
+Check 'export/import round trip' ((@(Import-BTConfig $cfgFile) -join ',') -eq 'gaming.dvr,ui.ext')
 Add-BTMemoryType
 Check 'memory API compiled' ([bool]('BlazmaTweak.Memory' -as [type]))
 

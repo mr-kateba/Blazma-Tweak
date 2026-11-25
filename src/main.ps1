@@ -3,23 +3,32 @@ param(
     [switch]$NoElevate,
     [switch]$DryRun,
     [string]$Shot,
-    [string]$Lang
+    [string]$Lang,
+    # without the window: -Preset basic|gaming|max|recommended, -Apply id,id, -Undo id,id|all, -Config file.json, -List
+    [string]$Preset,
+    [string[]]$Apply,
+    [string[]]$Undo,
+    [string]$Config,
+    [switch]$List
 )
 
-$BTVersion = '0.1.0'
+$BTVersion = '0.2.0'
 $BTReleaseUrl = 'https://github.com/mr-kateba/Blazma-Tweak/releases/latest/download/BlazmaTweak.ps1'
 
 # ------------------------------------------------------------------ start-up: STA + administrator
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $isSta = [Threading.Thread]::CurrentThread.ApartmentState -eq 'STA'
-if ((-not $isAdmin -and -not $NoElevate -and -not $DryRun) -or -not $isSta) {
+$headless = [bool]($Preset -or $Apply -or $Undo -or $Config -or $List)
+if ((-not $isAdmin -and -not $NoElevate -and -not $DryRun -and -not $List) -or (-not $isSta -and -not $headless)) {
     $self = $PSCommandPath
     $extra = @()
-    if ($DryRun) { $extra += '-DryRun' }
-    if ($NoElevate) { $extra += '-NoElevate' }
-    if ($Lang) { $extra += "-Lang $Lang" }
-    if ($self) { $argLine = "-NoProfile -ExecutionPolicy Bypass -STA -File `"$self`" $($extra -join ' ')" }
-    else { $argLine = "-NoProfile -ExecutionPolicy Bypass -STA -Command `"& ([ScriptBlock]::Create((Invoke-RestMethod '$BTReleaseUrl'))) $($extra -join ' ')`"" }
+    foreach ($kv in $PSBoundParameters.GetEnumerator()) {
+        if ($kv.Value -is [System.Management.Automation.SwitchParameter]) { if ($kv.Value) { $extra += "-$($kv.Key)" } }
+        else { $extra += "-$($kv.Key) '$((@($kv.Value) -join ',') -replace "'", "''")'" }
+    }
+    $keep = if ($headless) { '-NoExit ' } else { '' }
+    if ($self) { $argLine = "$keep-NoProfile -ExecutionPolicy Bypass -STA -File `"$self`" $($extra -join ' ')" }
+    else { $argLine = "$keep-NoProfile -ExecutionPolicy Bypass -STA -Command `"& ([ScriptBlock]::Create((Invoke-RestMethod '$BTReleaseUrl'))) $($extra -join ' ')`"" }
     $verb = if ($isAdmin -or $NoElevate -or $DryRun) { 'Open' } else { 'RunAs' }
     try { Start-Process powershell.exe -Verb $verb -ArgumentList $argLine } catch { Write-Host 'Blazma Tweak needs administrator rights.' -ForegroundColor Yellow }
     return
@@ -32,11 +41,53 @@ if (-not $BTCoreText) {
     $BTXaml = [IO.File]::ReadAllText((Join-Path $root 'src\ui.xaml'))
     $BTTweaksJson = [IO.File]::ReadAllText((Join-Path $root 'config\tweaks.json'))
     $BTStringsJson = [IO.File]::ReadAllText((Join-Path $root 'config\strings.json'))
+    $BTAppsJson = [IO.File]::ReadAllText((Join-Path $root 'config\apps.json'))
 }
 
 $BTDir = Join-Path $env:LOCALAPPDATA 'BlazmaTweak'
 $BTDryRun = [bool]$DryRun
 . ([scriptblock]::Create($BTCoreText))
+$Tweaks = @(($BTTweaksJson | ConvertFrom-Json).tweaks)
+$AppCatalog = @(($BTAppsJson | ConvertFrom-Json).apps)
+
+# ------------------------------------------------------------------ command line (no window)
+if ($headless) {
+    function Find-Tweaks([string[]]$Ids) {
+        $ids2 = @($Ids | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        foreach ($i in $ids2) { if (-not ($Tweaks | Where-Object id -eq $i)) { Write-Host "  unknown tweak: $i" -ForegroundColor Yellow } }
+        @($Tweaks | Where-Object { $ids2 -contains $_.id })
+    }
+    Write-Host "Blazma Tweak $BTVersion$(if ($BTDryRun) { '  (dry run: nothing is changed)' })" -ForegroundColor DarkYellow
+    if ($List) {
+        foreach ($t in $Tweaks) { '{0,-22} {1,-4} {2,-9} {3}' -f $t.id, (Get-BTTweakState $t), $t.risk, $t.en.name }
+        return
+    }
+    $todo = @(); $mode = 'apply'
+    if ($Preset) {
+        $pc = Get-BTProfile
+        $todo = if ($Preset -eq 'recommended') { @($Tweaks | Where-Object { Test-BTRecommended $_ $pc }) } else { @($Tweaks | Where-Object { @($_.presets) -contains $Preset }) }
+        if (-not $todo.Count) { Write-Host "Unknown preset '$Preset'. Use basic, gaming, max or recommended." -ForegroundColor Red; return }
+    }
+    if ($Config) { $todo += Find-Tweaks (Import-BTConfig $Config) }
+    if ($Apply) { $todo += Find-Tweaks $Apply }
+    if ($Undo) {
+        $mode = 'undo'
+        $todo = if (@($Undo) -contains 'all') { $b = Read-BTBackup; @($Tweaks | Where-Object { $b.ContainsKey($_.id) }) } else { Find-Tweaks $Undo }
+    }
+    $todo = @($todo | Sort-Object id -Unique)
+    if ($mode -eq 'apply' -and -not $BTDryRun) { Write-Host 'Creating a restore point...'; [void](New-BTRestorePoint 'Blazma Tweak') }
+    $n = 0
+    foreach ($t in $todo) {
+        $n++
+        try {
+            if ($mode -eq 'apply') { if ((Get-BTTweakState $t) -ne 'on') { Invoke-BTTweak $t } } else { Undo-BTTweak $t }
+            Write-Host ('[{0}/{1}] {2,-6} {3}  -> {4}' -f $n, $todo.Count, $mode, $t.id, (Get-BTTweakState $t))
+        } catch { Write-Host "[$n/$($todo.Count)] $($t.id): $($_.Exception.Message)" -ForegroundColor Red }
+    }
+    if ($todo | Where-Object restart -eq 'reboot') { Write-Host 'Restart the PC to finish.' -ForegroundColor Yellow }
+    Write-Host 'Done.' -ForegroundColor Green
+    return
+}
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Xaml
 [xml]$xamlDoc = $BTXaml
@@ -47,7 +98,6 @@ $xamlDoc.SelectNodes('//*[@*[local-name()="Name"]]') | ForEach-Object {
     if ($n) { $ui[$n] = $win.FindName($n) }
 }
 
-$Tweaks = @(($BTTweaksJson | ConvertFrom-Json).tweaks)
 $Categories = @(($BTTweaksJson | ConvertFrom-Json).categories)
 $Strings = $BTStringsJson | ConvertFrom-Json
 $State = @{}           # tweak id -> on | off | partial
@@ -173,6 +223,7 @@ function New-TweakCard($Tweak) {
     $tags = New-Object Windows.Controls.WrapPanel
     [void]$tags.Children.Add((New-Badge (S "risk.$($Tweak.risk)") $RiskColor[$Tweak.risk]))
     [void]$tags.Children.Add((New-Badge (S "cat.$($Tweak.cat)") '#A0A0AB'))
+    if ($script:Pc -and (Test-BTRecommended $Tweak $script:Pc)) { [void]$tags.Children.Add((New-Badge (S 'scan.badge') '#FF6D00')) }
     if ($Tweak.restart -eq 'reboot') { [void]$tags.Children.Add((New-Badge (S 'need.reboot') '#5B6CFF')) }
     if ($Tweak.restart -eq 'explorer') { [void]$tags.Children.Add((New-Badge (S 'need.explorer') '#5B6CFF')) }
     $partial = New-Badge (S 'partial') '#FFB300'; $partial.Visibility = 'Collapsed'
@@ -203,7 +254,7 @@ function Update-TweakSwitches([string]$Id) {
     }
 }
 
-function Update-AllSwitches { foreach ($id in @($Switches.Keys)) { Update-TweakSwitches $id }; Update-Summary }
+function Update-AllSwitches { foreach ($id in @($Switches.Keys)) { Update-TweakSwitches $id }; Update-Summary; Update-Scan }
 
 # Applies or undoes one tweak when its switch is clicked.
 function Switch-Tweak($Sw) {
@@ -304,7 +355,7 @@ function Filter-Tweaks {
 function Update-Summary {
     $on = @($Tweaks | Where-Object { $State[$_.id] -eq 'on' }).Count
     $ui.TxtTweakCount.Text = F 'tweaks.count' $Tweaks.Count $on
-    $rec = @($Tweaks | Where-Object { $_.presets -contains 'gaming' })
+    $rec = if ($script:Pc) { @($Tweaks | Where-Object { Test-BTRecommended $_ $script:Pc }) } else { @($Tweaks | Where-Object { $_.presets -contains 'gaming' }) }
     $recOn = @($rec | Where-Object { $State[$_.id] -eq 'on' }).Count
     if ($State.Count) {
         $pct = [math]::Round(100 * $recOn / [math]::Max(1, $rec.Count))
@@ -552,9 +603,176 @@ function Update-Applied {
     }
 }
 
+
+# ------------------------------------------------------------------ smart scan
+$script:Pc = $null
+function Run-Scan {
+    $ui.TxtScanPc.Text = S 'scan.wait'; $ui.BtnScanPc.IsEnabled = $false
+    Start-Job2 { param($a, $sync) Get-BTProfile } $null {
+        param($r, $err)
+        $ui.BtnScanPc.IsEnabled = $true
+        $pc = @($r)[0]
+        if (-not $pc) { $ui.TxtScanPc.Text = F 'status.error' $(if ($err) { $err.Message } else { '?' }); return }
+        $script:Pc = $pc
+        Build-Tweaks; Update-AllSwitches
+    }
+}
+
+function Update-Scan {
+    if (-not $script:Pc) { return }
+    $pc = $script:Pc
+    $rec = @($Tweaks | Where-Object { Test-BTRecommended $_ $pc })
+    $on = @($rec | Where-Object { $State[$_.id] -eq 'on' }).Count
+    $ui.TxtScanPc.Text = F 'scan.result' $pc.RamGB $(if ($pc.Ssd) { S 'scan.ssd' } else { S 'scan.hdd' }) $(if ($pc.Laptop) { S 'scan.laptop' } else { S 'scan.desktop' }) $(if ($pc.Printers -eq 0) { S 'scan.noprinter' } else { '' }) $rec.Count $on
+    $ui.BtnApplyRec.IsEnabled = $State.Count -and ($on -lt $rec.Count) -and -not $script:Busy
+}
+
+function Apply-Recommended {
+    if (-not $script:Pc) { return }
+    $todo = @($Tweaks | Where-Object { (Test-BTRecommended $_ $script:Pc) -and $State[$_.id] -ne 'on' })
+    if (-not $todo.Count -or -not (Ask (F 'confirm.rec' $todo.Count))) { return }
+    Invoke-TweakChange $todo $true (F 'status.presetDone' $todo.Count)
+}
+
+# ------------------------------------------------------------------ apps page
+$script:AppsLoaded = $false
+$AppBoxes = [ordered]@{}
+function Load-Apps {
+    $ui.TxtApps.Text = S 'apps.loading'; $ui.BtnAppsRemove.IsEnabled = $false
+    Start-Job2 { param($a, $sync) @(Get-BTApps $a) } $AppCatalog {
+        param($r, $err)
+        $script:AppsLoaded = $true
+        Build-Apps @($r)
+    }
+}
+
+function Build-Apps($Info) {
+    $ui.AppList.Children.Clear(); $AppBoxes.Clear()
+    $removed = Get-BTRemovedApps
+    $lang = $Settings.lang
+    foreach ($g in 'ms', 'ads', 'xbox') {
+        $head = New-Object Windows.Controls.TextBlock
+        $head.Text = S "apps.g.$g"; $head.Style = $win.FindResource('H2'); $head.Margin = '0,10,0,8'
+        [void]$ui.AppList.Children.Add($head)
+        $wrap = New-Object Windows.Controls.WrapPanel
+        foreach ($a in $AppCatalog | Where-Object group -eq $g) {
+            $st = $Info | Where-Object { $_.Match -eq $a.match } | Select-Object -First 1
+            $gone = $removed | Where-Object { $_.match -eq $a.match } | Select-Object -First 1
+            if (-not ($st -and $st.Installed) -and -not $gone) { continue }
+            $card = New-Object Windows.Controls.Border
+            $card.Style = $win.FindResource('Card'); $card.Padding = '14,10'; $card.Margin = '0,0,10,10'; $card.Width = 270
+            if ($st -and $st.Installed) {
+                $cb = New-Object Windows.Controls.CheckBox; $cb.Style = $win.FindResource('Check'); $cb.IsChecked = [bool]$a.default; $cb.Tag = $a.match
+                $t = New-Object Windows.Controls.TextBlock; $t.Text = $a.$lang; $t.TextTrimming = 'CharacterEllipsis'; $t.TextWrapping = 'NoWrap'; $t.MaxWidth = 210
+                $cb.Content = $t
+                $cb.Add_Click({ Update-AppCount })
+                $card.Child = $cb
+                $AppBoxes[$a.match] = $cb
+            } else {
+                $sp = New-Object Windows.Controls.StackPanel
+                $t = New-Object Windows.Controls.TextBlock; $t.Text = '{0}  -  {1}' -f $a.$lang, (S 'apps.removed'); $t.Foreground = $win.FindResource('Faint')
+                $lnk = New-Object Windows.Controls.TextBlock; $lnk.Text = S 'apps.restore'; $lnk.Foreground = $win.FindResource('Accent'); $lnk.Cursor = 'Hand'; $lnk.Margin = '0,4,0,0'; $lnk.Tag = $gone.family
+                $lnk.Add_MouseLeftButtonUp({ param($s, $e) Start-Process ("ms-windows-store://pdp/?PFN=" + $s.Tag) })
+                [void]$sp.Children.Add($t); [void]$sp.Children.Add($lnk)
+                $card.Child = $sp
+            }
+            [void]$wrap.Children.Add($card)
+        }
+        if ($wrap.Children.Count) { [void]$ui.AppList.Children.Add($wrap) } else { [void]$ui.AppList.Children.Remove($head) }
+    }
+    if (-not $ui.AppList.Children.Count) {
+        $t = New-Object Windows.Controls.TextBlock; $t.Text = S 'apps.none'; $t.Foreground = $win.FindResource('Faint'); [void]$ui.AppList.Children.Add($t)
+    }
+    Update-AppCount
+}
+
+function Update-AppCount {
+    $sel = @($AppBoxes.Values | Where-Object { $_.IsChecked }).Count
+    $ui.TxtApps.Text = F 'apps.count' $AppBoxes.Count $sel
+    $ui.BtnAppsRemove.IsEnabled = $sel -gt 0 -and -not $script:Busy
+}
+
+function Remove-SelectedApps {
+    $sel = @($AppBoxes.Keys | Where-Object { $AppBoxes[$_].IsChecked })
+    if (-not $sel.Count -or -not (Ask (F 'apps.confirm' $sel.Count))) { return }
+    Show-Busy (S 'busy')
+    Start-Job2 { param($a, $sync) @(Remove-BTApps $a) } $sel {
+        param($r, $err)
+        Hide-Busy
+        if ($err) { Set-Status (F 'status.error' $err.Message) } else { Set-Status (F 'apps.done' @($r).Count) }
+        Load-Apps
+    }
+}
+
+# ------------------------------------------------------------------ startup page
+function Load-Startup {
+    Start-Job2 { param($a, $sync) @(Get-BTStartupItems) } $null { param($r, $err) Build-Startup @($r | Where-Object { $_ }) }
+}
+
+function Build-Startup($Items) {
+    $ui.StartupList.Children.Clear()
+    $ui.TxtStartupCount.Text = F 'startup.count' $Items.Count @($Items | Where-Object Enabled).Count
+    if (-not $Items.Count) {
+        $t = New-Object Windows.Controls.TextBlock; $t.Text = S 'startup.none'; $t.Foreground = $win.FindResource('Faint'); [void]$ui.StartupList.Children.Add($t); return
+    }
+    foreach ($it in $Items) {
+        $card = New-Object Windows.Controls.Border
+        $card.Style = $win.FindResource('Card'); $card.Padding = '16,12'; $card.Margin = '0,0,0,8'
+        $dp = New-Object Windows.Controls.DockPanel
+        $sw = New-Object Windows.Controls.CheckBox; $sw.Style = $win.FindResource('Switch'); $sw.IsChecked = [bool]$it.Enabled; $sw.Margin = '16,0,0,0'
+        $sw.Tag = $it
+        [Windows.Controls.DockPanel]::SetDock($sw, 'Right')
+        $sw.Add_Click({
+            param($s, $e)
+            try {
+                Set-BTStartupItem $s.Tag ([bool]$s.IsChecked)
+                $s.Tag.Enabled = [bool]$s.IsChecked
+                Set-Status $(if ($s.IsChecked) { F 'startup.on' $s.Tag.Name } else { F 'startup.off' $s.Tag.Name })
+            } catch { $s.IsChecked = -not $s.IsChecked; Set-Status (F 'status.error' $_.Exception.Message) }
+        })
+        $sp = New-Object Windows.Controls.StackPanel
+        $n = New-Object Windows.Controls.TextBlock; $n.Text = $it.Name -replace '(?i)\.(lnk|url)$', ''; $n.FontWeight = 'SemiBold'; $n.FontSize = 14
+        $where = if ($it.Kind -eq 'store') { S 'startup.store' } elseif ($it.Scope -eq 'user') { S 'startup.user' } else { S 'startup.machine' }
+        $meta = New-Object Windows.Controls.TextBlock; $meta.Foreground = $win.FindResource('Muted'); $meta.FontSize = 12; $meta.Margin = '0,2,0,0'
+        $meta.Text = (@($it.Publisher, $where) | Where-Object { $_ }) -join '  -  '
+        $cmd = New-Object Windows.Controls.TextBlock; $cmd.Text = $it.Command; $cmd.Foreground = $win.FindResource('Faint'); $cmd.FontSize = 11.5; $cmd.TextTrimming = 'CharacterEllipsis'; $cmd.TextWrapping = 'NoWrap'; $cmd.FlowDirection = 'LeftToRight'; $cmd.HorizontalAlignment = 'Right'; $cmd.Margin = '0,3,0,0'
+        if ($Settings.lang -ne 'ar') { $cmd.HorizontalAlignment = 'Left' }
+        [void]$sp.Children.Add($n); [void]$sp.Children.Add($meta); [void]$sp.Children.Add($cmd)
+        [void]$dp.Children.Add($sw); [void]$dp.Children.Add($sp)
+        $card.Child = $dp
+        [void]$ui.StartupList.Children.Add($card)
+    }
+}
+
+# ------------------------------------------------------------------ export / import
+function Get-AppliedIds { @($Tweaks | Where-Object { $State[$_.id] -eq 'on' } | ForEach-Object id) }
+function Update-Cli {
+    $ids = Get-AppliedIds
+    $ui.TxtCli.Text = if ($ids.Count) { "& ([ScriptBlock]::Create((irm mr-kateba.github.io/tweak))) -Apply $($ids -join ',')" } else { "& ([ScriptBlock]::Create((irm mr-kateba.github.io/tweak))) -Preset recommended" }
+}
+function Export-Settings {
+    $dlg = New-Object Microsoft.Win32.SaveFileDialog
+    $dlg.FileName = 'BlazmaTweak-{0:yyyy-MM-dd}.json' -f (Get-Date); $dlg.Filter = "$(S 'file.filter') (*.json)|*.json"
+    if (-not $dlg.ShowDialog($win)) { return }
+    $ids = Get-AppliedIds
+    Export-BTConfig $dlg.FileName $ids
+    Set-Status (F 'status.exported' $ids.Count)
+}
+function Import-Settings {
+    $dlg = New-Object Microsoft.Win32.OpenFileDialog
+    $dlg.Filter = "$(S 'file.filter') (*.json)|*.json"
+    if (-not $dlg.ShowDialog($win)) { return }
+    try { $ids = Import-BTConfig $dlg.FileName } catch { Set-Status (S 'status.badfile'); return }
+    $list = @($Tweaks | Where-Object { $ids -contains $_.id })
+    $todo = @($list | Where-Object { $State[$_.id] -ne 'on' })
+    if (-not $todo.Count) { Set-Status (S 'preset.done'); return }
+    if (-not (Ask (F 'confirm.import' $list.Count $todo.Count))) { return }
+    Invoke-TweakChange $todo $true (F 'status.presetDone' $todo.Count)
+}
+
 # ------------------------------------------------------------------ navigation + language
-$Pages = [ordered]@{ NavHome = 'PageHome'; NavTweaks = 'PageTweaks'; NavMemory = 'PageMemory'; NavPower = 'PagePower'; NavClean = 'PageClean'; NavNet = 'PageNet'; NavBackup = 'PageBackup' }
-$NavKeys = @{ NavHome = 'nav.home'; NavTweaks = 'nav.tweaks'; NavMemory = 'nav.memory'; NavPower = 'nav.power'; NavClean = 'nav.clean'; NavNet = 'nav.net'; NavBackup = 'nav.backup' }
+$Pages = [ordered]@{ NavHome = 'PageHome'; NavTweaks = 'PageTweaks'; NavApps = 'PageApps'; NavStartup = 'PageStartup'; NavMemory = 'PageMemory'; NavPower = 'PagePower'; NavClean = 'PageClean'; NavNet = 'PageNet'; NavBackup = 'PageBackup' }
+$NavKeys = @{ NavHome = 'nav.home'; NavTweaks = 'nav.tweaks'; NavApps = 'nav.apps'; NavStartup = 'nav.startup'; NavMemory = 'nav.memory'; NavPower = 'nav.power'; NavClean = 'nav.clean'; NavNet = 'nav.net'; NavBackup = 'nav.backup' }
 function Show-Page([string]$Nav) {
     foreach ($k in $Pages.Keys) { $ui[$Pages[$k]].Visibility = if ($k -eq $Nav) { 'Visible' } else { 'Collapsed' } }
     $ui[$Nav].IsChecked = $true
@@ -562,8 +780,10 @@ function Show-Page([string]$Nav) {
         'NavMemory' { Update-Memory }
         'NavPower'  { Load-Plans }
         'NavNet'    { Load-Network }
-        'NavBackup' { Update-Applied }
+        'NavBackup' { Update-Applied; Update-Cli }
         'NavClean'  { if (-not $script:CleanSizes.Count) { Scan-Clean } }
+        'NavApps'   { if (-not $script:AppsLoaded) { Load-Apps } }
+        'NavStartup' { Load-Startup }
     }
 }
 
@@ -622,6 +842,12 @@ $ui.BtnUndoAll.Add_Click({
     if (-not $list.Count -or -not (Ask (F 'confirm.undoAll' $list.Count))) { return }
     Invoke-TweakChange $list $false (S 'status.undoAllDone')
 })
+$ui.BtnScanPc.Add_Click({ Run-Scan })
+$ui.BtnApplyRec.Add_Click({ Apply-Recommended })
+$ui.BtnAppsRefresh.Add_Click({ Load-Apps })
+$ui.BtnAppsRemove.Add_Click({ Remove-SelectedApps })
+$ui.BtnExport.Add_Click({ Export-Settings })
+$ui.BtnImport.Add_Click({ Import-Settings })
 $ui.BtnExplorer.Add_Click({ Restart-BTExplorer; $ui.BtnExplorer.Visibility = 'Collapsed' })
 
 $MemTimer = New-Object Windows.Threading.DispatcherTimer
@@ -665,13 +891,13 @@ if ($Shot) {
         if ($script:Busy) { return }
         if ($script:ShotCurrent) {
             if ($script:ShotTicks-- -gt 0 -or $script:Busy) { return }
-            $n = 7 - $script:ShotQueue.Count - 1
+            $n = $Pages.Count - $script:ShotQueue.Count - 1
             Save-Shot (Join-Path $Shot ('{0:00}_{1}_{2}.png' -f $n, $script:ShotCurrent.Substring(3).ToLower(), $Settings.lang))
             $script:ShotCurrent = $null
         }
         if (-not $script:ShotQueue.Count) { $ShotTimer.Stop(); $win.Close(); return }
         $script:ShotCurrent = $script:ShotQueue.Dequeue()
-        $script:ShotTicks = if ($script:ShotCurrent -eq 'NavClean') { 8 } else { 2 }
+        $script:ShotTicks = if ($script:ShotCurrent -in 'NavClean', 'NavApps', 'NavStartup') { 8 } else { 2 }
         Show-Page $script:ShotCurrent
     })
 }
@@ -687,6 +913,7 @@ $win.Add_ContentRendered({
     try {
         Load-SystemInfo
         Load-States
+        Run-Scan
         $MemTimer.Start()
         if ($Shot) { $ShotTimer.Start() }
     } catch { Write-BTLog "start error: $_ $($_.InvocationInfo.PositionMessage)" }

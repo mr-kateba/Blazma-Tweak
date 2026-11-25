@@ -6,6 +6,10 @@
 - Never applied real tweaks on the owner's PC during development: verification used `-DryRun`, read-only detection and a throw-away `HKCU\Software\BlazmaTweakTest` key (`tests/run.ps1`).
 - Font is Segoe UI (WPF can't use the woff2 IBM Plex files the family site uses).
 
+- GitHub survey (v0.2.0): only MIT projects (Win11Debloat, Sophia Script) used as references, credited in THIRD-PARTY-NOTICES.md; GPL projects (Optimizer, Atlas, Mem Reduct) ideas only. WinUtil skipped because Blazma Boost is already built on it.
+- Owner's PC already lacks almost every app in the Apps catalogue (only PC Manager found), so the Apps page was verified with a near-empty list.
+- The owner ran v0.1.0 for real as admin on 2026-11-25 20:17: restore point, perf.bgapps, RAM clean, disk clean (2 GB) — all succeeded per his log.
+
 ## Pitfalls hit (fixed)
 - Pooled `[powershell]` with `AddStatement()` never completes on Windows PowerShell 5.1 → `Start-Job2` sends one script: `param($__arg,$__sync)` + settings + core + `& { work } $__arg $__sync`.
 - `GetNewClosure()` on UI callbacks loses script-scope variables when run with `-File` → job results carry their context (`Complete-TweakChange`).
@@ -21,4 +25,5 @@
 - Real apply/undo of system tweaks not yet exercised on a real machine as admin.
 - `mem.svchost` shows "on" on the owner's PC already (Windows default may already exceed 3670016 KB on 16 GB) — detection may be too loose.
 - Shader cache on the owner's PC measured ~40 GB; it is unchecked by default in Cleanup.
-- English layout only spot-checked (tweaks page).
+- English layout spot-checked (home, tweaks).
+- `$Matches` / `$Profile` are automatic variables — don't use them as parameter names (renamed to `$Names` / `$Pc`).
