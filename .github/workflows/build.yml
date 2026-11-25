@@ -1,0 +1,33 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checks
+        shell: powershell
+        run: ./tests/run.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BlazmaTweak
+          path: dist/BlazmaTweak.ps1
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $notes = Join-Path 'docs/releases' "$tag.md"
+          if (Test-Path $notes) { gh release create $tag dist/BlazmaTweak.ps1 --title "Blazma Tweak $tag" --notes-file $notes }
+          else { gh release create $tag dist/BlazmaTweak.ps1 --title "Blazma Tweak $tag" --generate-notes }
